@@ -1,183 +1,194 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <!-- Meta viewport chuẩn cho thiết bị di động, chống zoom thủ công để không hỏng layout -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Luyện Phát Âm (Bản Mobile)</title>
+    <title>Luyện Phát Âm Tiếng Trung</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            /* Ngăn chặn hành vi bôi đen text khi chạm liên tục trên điện thoại */
             -webkit-user-select: none;
             user-select: none;
-            /* Ngăn cuộn trang rác trên mobile */
-            overscroll-behavior-y: none;
+            overscroll-behavior-y: none; /* Ngăn chặn pull-to-refresh trên mobile */
         }
+        
+        /* CỐ ĐỊNH LAYOUT: Kích thước và font-size không đổi để tránh nhảy chữ */
         .sound-card {
-            transition: all 0.25s ease-out;
+            width: 80px;
+            height: 80px;
+            font-size: 3rem;
+            line-height: 1;
+            transition: background-color 0.15s, color 0.15s, box-shadow 0.15s, border-color 0.15s;
         }
-        /* Tap zones feedback (không màu, chỉ dùng để bắt sự kiện) */
+        @media (min-width: 768px) {
+            .sound-card {
+                width: 140px;
+                height: 140px;
+                font-size: 5rem;
+            }
+        }
+
+        /* Ẩn highlight mặc định khi tap trên mobile */
         .tap-zone {
             -webkit-tap-highlight-color: transparent;
         }
+
+        /* Vô hiệu hoá hành vi mặc định của touch khi đang kéo thả camera */
+        .touch-none-custom {
+            touch-action: none;
+        }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-900 h-screen w-screen overflow-hidden flex flex-col relative selection:bg-transparent">
+<body class="bg-gray-50 text-gray-900 h-screen w-screen overflow-hidden flex flex-col relative">
 
-    <!-- Thanh Progress Bar -->
-    <div class="w-full bg-gray-200 h-1.5 z-50">
-        <div id="progress-bar" class="bg-red-500 h-1.5 transition-all duration-500" style="width: 0%"></div>
-    </div>
-
-    <!-- KHU VỰC TAP TRÁI / PHẢI ẨN BÊN DƯỚI -->
-    <div class="absolute inset-0 z-10 flex tap-zone pt-2">
-        <div class="w-1/2 h-full" onclick="prevItem()"></div>
-        <div class="w-1/2 h-full" onclick="nextItem()"></div>
-    </div>
-
-    <!-- KHU VỰC HIỂN THỊ CHÍNH (Nằm trên tap zone) -->
-    <div class="flex-1 flex flex-col items-center justify-start pt-6 px-4 pb-20 relative z-20 pointer-events-none">
+    <!-- THANH CÔNG CỤ (Z-INDEX CAO NHẤT ĐỂ KHÔNG BỊ VÙNG TAP CHE) -->
+    <div class="fixed top-0 left-0 w-full bg-white/95 backdrop-blur shadow-sm z-50 px-2 py-3 md:px-4 md:py-3 flex flex-col md:flex-row items-center justify-between gap-2 border-b border-gray-200">
         
-        <!-- Header -->
-        <div class="text-center mb-6 w-full pointer-events-auto">
-            <span id="category-badge" class="inline-block px-3 py-1 bg-red-100 text-red-700 font-bold rounded-full text-sm uppercase tracking-wide mb-2 shadow-sm">
-                PHỤ ÂM
-            </span>
-            <h1 id="group-title" class="text-2xl font-extrabold text-gray-800 px-2 leading-tight">
-                Nhóm 1
-            </h1>
-            <p id="progress-text" class="text-gray-500 text-xs font-medium mt-2">1 / 12</p>
-        </div>
-
-        <!-- Lưới chữ cái -->
-        <div id="sound-grid" class="w-full flex flex-wrap justify-center content-start gap-3 mt-4 pointer-events-auto">
-            <!-- Render từ JS -->
-        </div>
-
-        <!-- Hướng dẫn thao tác (Chỉ hiện lúc đầu) -->
-        <div class="mt-auto mb-10 bg-white/80 backdrop-blur px-4 py-2 rounded-2xl shadow border border-gray-100 text-center text-sm text-gray-500 animate-pulse pointer-events-auto">
-            👈 Chạm TRÁI để lùi | Chạm PHẢI để tiến 👉
-        </div>
-    </div>
-
-    <!-- Nút Bật Camera (Hiện ra nếu camera chưa bật) -->
-    <div id="camera-prompt" class="absolute inset-0 bg-gray-900/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center p-6 text-center">
-        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full">
-            <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-            </div>
-            <h2 class="text-xl font-bold mb-2 text-gray-800">Cấp quyền Camera</h2>
-            <p class="text-sm text-gray-500 mb-6">Ứng dụng cần sử dụng camera trước để bạn có thể xem lại khẩu hình miệng của mình khi quay màn hình.</p>
-            <button onclick="startCamera()" class="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-700 active:scale-95 transition-transform shadow-md">
-                Cho phép Camera
-            </button>
-            <p id="cam-error" class="text-red-500 text-xs mt-3 hidden"></p>
-        </div>
-    </div>
-
-    <!-- KHU VỰC CAMERA TRƯỚC (Nổi ở góc dưới bên phải) -->
-    <div id="camera-container" class="fixed bottom-4 right-4 w-28 h-40 md:w-40 md:h-56 bg-gray-800 rounded-2xl overflow-hidden shadow-2xl border-[3px] border-white z-50 transition-transform duration-300 hidden">
-        <!-- Thuộc tính playsinline RẤT QUAN TRỌNG cho iOS để không bị phóng to toàn màn hình -->
-        <video id="webcam" autoplay playsinline muted class="w-full h-full object-cover transform scale-x-[-1]"></video>
-    </div>
-
-    <!-- JAVASCRIPT -->
-    <script>
-        // Dữ liệu bóc tách từ tài liệu
-        const slidesData = [
-            { category: "PHỤ ÂM", title: "Nhóm 1 (Hai môi & răng môi)", items: ["b", "p", "m", "f"] },
-            { category: "PHỤ ÂM", title: "Nhóm 2 (Đầu lưỡi)", items: ["d", "t", "l", "n"] },
-            { category: "PHỤ ÂM", title: "Nhóm 3 (Mặt lưỡi trước)", items: ["j", "q", "x"] },
-            { category: "PHỤ ÂM", title: "Nhóm 4 (Cuống lưỡi)", items: ["g", "k", "h"] },
-            { category: "PHỤ ÂM", title: "Nhóm 5 (Đầu lưỡi trước)", items: ["z", "c", "s"] },
-            { category: "PHỤ ÂM", title: "Nhóm 6 (Uốn lưỡi)", items: ["zh", "ch", "sh", "r"] },
+        <!-- Nhóm Menu và Tiến độ -->
+        <div class="flex items-center justify-between w-full md:w-auto gap-3">
+            <select id="mode-select" onchange="changeMode()" class="border border-gray-300 rounded-lg px-2 py-1.5 text-sm font-semibold text-gray-700 bg-gray-50 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 max-w-[200px]">
+                <option value="3">3. Phụ âm & Nguyên âm</option>
+                <option value="1">1. Phụ âm (6 nhóm)</option>
+                <option value="2">2. Nguyên âm gốc</option>
+            </select>
             
-            { category: "NGUYÊN ÂM", title: "Nguyên âm đơn", items: ["a", "o", "e", "i", "u", "ü"] },
-            { category: "NGUYÊN ÂM", title: "Nguyên âm kép nhóm 1", items: ["ao", "ai", "ou", "ei"] },
-            { category: "NGUYÊN ÂM", title: "Nguyên âm kép nhóm 2", items: ["ia", "ie", "iu", "ua", "uo", "ui", "üe"] },
-            { category: "NGUYÊN ÂM", title: "Nguyên âm kép nhóm 3", items: ["an", "en", "in", "un", "ün", "ang", "ong", "eng", "ing"] },
-            { category: "NGUYÊN ÂM", title: "Nguyên âm kép nhóm 4", items: ["iao", "ian", "iang", "iong", "uai", "uan", "uang", "ueng", "üan"] },
-            { category: "NGUYÊN ÂM", title: "Nguyên âm đặc biệt", items: ["er"] }
+            <div class="text-sm font-bold text-gray-800 whitespace-nowrap bg-gray-100 px-3 py-1.5 rounded-lg">
+                <span id="progress-text" class="text-red-600">1 / 1</span>
+            </div>
+        </div>
+
+        <!-- Nhóm Nút Camera -->
+        <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+            <button onclick="toggleCameraBorder()" class="flex-1 md:flex-none px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg border border-gray-300 active:bg-gray-200 whitespace-nowrap">
+                Ẩn/Hiện Viền
+            </button>
+            <button id="cam-toggle-btn" onclick="toggleCamera()" class="flex-1 md:flex-none px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg shadow active:bg-blue-700 whitespace-nowrap transition-colors">
+                Bật Camera
+            </button>
+        </div>
+    </div>
+
+    <!-- VÙNG CHẠM ĐIỀU HƯỚNG (NẰM DƯỚI THANH TOP, TRÊN KHU VỰC HIỂN THỊ) -->
+    <!-- pt-28 (mobile) hoặc pt-16 (desktop) để chừa chỗ cho thanh menu ở trên -->
+    <div class="absolute inset-0 z-10 flex tap-zone pt-28 md:pt-16">
+        <!-- 1/3 Bên Trái: Lùi -->
+        <div class="w-1/3 h-full cursor-pointer" onclick="prevItem()"></div>
+        <!-- 2/3 Bên Phải: Tiến -->
+        <div class="w-2/3 h-full cursor-pointer" onclick="nextItem()"></div>
+    </div>
+
+    <!-- KHU VỰC HIỂN THỊ NỘI DUNG CHÍNH -->
+    <!-- pointer-events-none để tránh chặn thao tác của Vùng Chạm ở trên -->
+    <div class="relative z-0 flex-1 flex flex-col items-center justify-start pt-32 md:pt-28 px-4 pb-10 pointer-events-none">
+        
+        <!-- Tiêu đề nhóm -->
+        <div class="text-center mb-6 md:mb-10 w-full px-2">
+            <h1 id="group-title" class="text-xl md:text-4xl font-extrabold text-gray-800 leading-tight">
+                Tiêu đề
+            </h1>
+        </div>
+
+        <!-- Lưới chứa các chữ cái -->
+        <div id="sound-grid" class="w-full flex flex-wrap justify-center content-start gap-3 md:gap-6">
+            <!-- Render từ Javascript -->
+        </div>
+
+        <!-- Chú thích hướng dẫn (ẩn trên màn hình nhỏ nếu cần, ở đây giữ lại) -->
+        <div class="mt-auto pointer-events-auto bg-gray-200 text-gray-600 text-[10px] md:text-xs px-4 py-2 rounded-full font-medium shadow-sm">
+            👈 Nhấn bên trái để lùi | Nhấn bên phải để tiến 👉
+        </div>
+    </div>
+
+    <!-- KHUNG CAMERA (Có thể di chuyển & thay đổi kích thước) -->
+    <!-- Mặc định ẩn (hidden), z-50 để luôn nổi lên trên cùng -->
+    <div id="camera-box" class="fixed bottom-6 right-4 w-32 h-44 md:w-48 md:h-64 bg-gray-900 rounded-xl overflow-hidden shadow-2xl border-2 border-dashed border-gray-400 z-50 flex flex-col hidden touch-none-custom">
+        
+        <!-- Handle di chuyển -->
+        <div id="drag-handle" class="w-full bg-gray-200/90 text-[10px] md:text-xs font-bold text-center text-gray-600 py-1.5 cursor-move touch-none-custom flex items-center justify-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path></svg>
+            Kéo để di chuyển
+        </div>
+        
+        <!-- Video Stream -->
+        <video id="webcam" autoplay playsinline muted class="w-full flex-1 object-cover transform scale-x-[-1] pointer-events-none bg-black"></video>
+        
+        <!-- Handle thay đổi kích thước (Resize) -->
+        <div id="resize-handle" class="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize touch-none-custom flex items-end justify-end p-1">
+            <svg class="w-4 h-4 text-white drop-shadow-md pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+        </div>
+    </div>
+
+    <!-- MÃ JAVASCRIPT -->
+    <script>
+        // --- 1. DỮ LIỆU ĐƯỢC CHUẨN HOÁ ---
+        const DATA_CONSONANTS = [
+            { title: "Phụ âm - Nhóm 1 (Hai môi & răng môi)", items: ["b", "p", "m", "f"] },
+            { title: "Phụ âm - Nhóm 2 (Đầu lưỡi)", items: ["d", "t", "l", "n"] },
+            { title: "Phụ âm - Nhóm 3 (Mặt lưỡi trước)", items: ["j", "q", "x"] },
+            { title: "Phụ âm - Nhóm 4 (Cuống lưỡi)", items: ["g", "k", "h"] },
+            { title: "Phụ âm - Nhóm 5 (Đầu lưỡi trước)", items: ["z", "c", "s"] },
+            { title: "Phụ âm - Nhóm 6 (Uốn lưỡi)", items: ["zh", "ch", "sh", "r"] }
         ];
 
+        const DATA_VOWELS = [
+            { title: "Nguyên âm gốc", items: ["a", "o", "e", "i", "u", "ü"] }
+        ];
+
+        // Biến trạng thái
+        let currentData = [];
         let currentSlideIndex = 0;
         let currentItemIndex = 0;
 
-        const categoryBadge = document.getElementById('category-badge');
         const groupTitle = document.getElementById('group-title');
         const soundGrid = document.getElementById('sound-grid');
         const progressText = document.getElementById('progress-text');
-        const progressBar = document.getElementById('progress-bar');
+        const modeSelect = document.getElementById('mode-select');
+
+        // --- 2. LÔ-GIC ĐIỀU HƯỚNG VÀ RENDER ---
         
-        // Cấp quyền và bật Camera
-        async function startCamera() {
-            const camError = document.getElementById('cam-error');
-            try {
-                // Yêu cầu camera trước, không cần audio vì trình quay màn hình sẽ bắt mic riêng
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'user' }, 
-                    audio: false 
-                });
-                
-                const videoEl = document.getElementById('webcam');
-                videoEl.srcObject = stream;
-                
-                // Ẩn bảng yêu cầu, hiện khung camera nhỏ
-                document.getElementById('camera-prompt').classList.add('hidden');
-                document.getElementById('camera-container').classList.remove('hidden');
-                
-            } catch (err) {
-                console.error("Lỗi camera: ", err);
-                camError.innerText = "Không thể truy cập camera. Vui lòng kiểm tra quyền trên trình duyệt.";
-                camError.classList.remove('hidden');
+        // Đổi chế độ theo <select>
+        function changeMode() {
+            const mode = modeSelect.value;
+            if (mode === "1") {
+                currentData = [...DATA_CONSONANTS];
+            } else if (mode === "2") {
+                currentData = [...DATA_VOWELS];
+            } else if (mode === "3") {
+                currentData = [...DATA_CONSONANTS, ...DATA_VOWELS];
             }
+            
+            // Reset về slide và item đầu tiên
+            currentSlideIndex = 0;
+            currentItemIndex = 0;
+            renderView();
         }
 
+        // Render giao diện
         function renderView() {
-            const slide = slidesData[currentSlideIndex];
+            if (currentData.length === 0) return;
             
-            categoryBadge.innerText = slide.category;
-            if(slide.category === "PHỤ ÂM") {
-                categoryBadge.className = "inline-block px-3 py-1 bg-blue-100 text-blue-700 font-bold rounded-full text-xs uppercase tracking-wide mb-2 shadow-sm";
-            } else {
-                categoryBadge.className = "inline-block px-3 py-1 bg-emerald-100 text-emerald-700 font-bold rounded-full text-xs uppercase tracking-wide mb-2 shadow-sm";
-            }
-
+            const slide = currentData[currentSlideIndex];
             groupTitle.innerText = slide.title;
-            progressText.innerText = `Nhóm ${currentSlideIndex + 1} / ${slidesData.length}`;
+            progressText.innerText = `${currentSlideIndex + 1} / ${currentData.length}`;
             
-            // Tính toán tiến trình
-            let totalItems = 0;
-            let passedItems = 0;
-            for(let i=0; i<slidesData.length; i++) {
-                totalItems += slidesData[i].items.length;
-                if(i < currentSlideIndex) {
-                    passedItems += slidesData[i].items.length;
-                }
-            }
-            passedItems += (currentItemIndex + 1);
-            let progressPercent = (passedItems / totalItems) * 100;
-            progressBar.style.width = `${progressPercent}%`;
-
-            // Render chữ
             soundGrid.innerHTML = '';
+            
             slide.items.forEach((soundText, index) => {
                 const div = document.createElement('div');
                 div.innerText = soundText;
                 
-                // Mặc định CSS (responsive: chữ nhỏ hơn cho mobile)
-                let baseClasses = 'sound-card flex items-center justify-center font-bold rounded-2xl px-4 py-3 min-w-[70px] md:min-w-[120px] ';
+                // Lớp CSS gốc (Kích thước được giữ cố định bởi class .sound-card)
+                let baseClasses = 'sound-card flex items-center justify-center font-bold rounded-2xl border-2 ';
                 
                 if (index === currentItemIndex) {
-                    // Active state: Chữ siêu to, nổi bật
-                    baseClasses += 'text-[4.5rem] md:text-[6rem] text-red-600 bg-yellow-100 border-2 border-yellow-400 scale-110 shadow-xl z-10 opacity-100 mx-2 my-2';
+                    // TRẠNG THÁI ACTIVE: Nền vàng, chữ đỏ đậm, viền vàng sậm, bóng nhẹ
+                    baseClasses += 'bg-[#ffeb3b] text-[#d32f2f] border-[#fbc02d] shadow-md z-10';
                 } else {
-                    // Inactive state: Chữ nhỏ, làm mờ
-                    baseClasses += 'text-[2.5rem] md:text-[4rem] text-gray-800 bg-white border border-gray-200 shadow-sm z-0 opacity-40';
+                    // TRẠNG THÁI BÌNH THƯỜNG: Nền trắng, chữ đen nhạt, viền xám
+                    baseClasses += 'bg-white text-gray-800 border-gray-200 z-0';
                 }
 
                 div.className = baseClasses;
@@ -186,11 +197,11 @@
         }
 
         function nextItem() {
-            const currentSlide = slidesData[currentSlideIndex];
-            if (currentItemIndex < currentSlide.items.length - 1) {
-                currentItemIndex++;
-            } else if (currentSlideIndex < slidesData.length - 1) {
-                currentSlideIndex++;
+            const slide = currentData[currentSlideIndex];
+            if (currentItemIndex < slide.items.length - 1) {
+                currentItemIndex++; // Nhảy sang chữ tiếp theo trong nhóm
+            } else if (currentSlideIndex < currentData.length - 1) {
+                currentSlideIndex++; // Sang nhóm tiếp theo
                 currentItemIndex = 0;
             }
             renderView();
@@ -198,15 +209,15 @@
 
         function prevItem() {
             if (currentItemIndex > 0) {
-                currentItemIndex--;
+                currentItemIndex--; // Lùi chữ trong nhóm
             } else if (currentSlideIndex > 0) {
-                currentSlideIndex--;
-                currentItemIndex = slidesData[currentSlideIndex].items.length - 1;
+                currentSlideIndex--; // Lùi về nhóm trước
+                currentItemIndex = currentData[currentSlideIndex].items.length - 1;
             }
             renderView();
         }
 
-        // Bàn phím máy tính vẫn dùng được nếu cần
+        // Hỗ trợ thêm phím cứng trên máy tính
         window.addEventListener('keydown', function(e) {
             if (e.code === 'Space' || e.code === 'ArrowRight') {
                 e.preventDefault();
@@ -217,11 +228,145 @@
             }
         });
 
-        // Khởi chạy
-        window.onload = () => {
-            renderView();
-        };
 
+        // --- 3. LÔ-GIC CAMERA ---
+        let stream = null;
+        const cameraBox = document.getElementById('camera-box');
+        const videoEl = document.getElementById('webcam');
+        const camToggleBtn = document.getElementById('cam-toggle-btn');
+        let isCameraOn = false;
+        let isBorderVisible = true;
+
+        async function toggleCamera() {
+            if (isCameraOn) {
+                // TẮT CAMERA
+                if (stream) stream.getTracks().forEach(track => track.stop());
+                videoEl.srcObject = null;
+                cameraBox.classList.add('hidden');
+                
+                camToggleBtn.innerText = "Bật Camera";
+                camToggleBtn.classList.replace('bg-red-600', 'bg-blue-600');
+                isCameraOn = false;
+            } else {
+                // BẬT CAMERA
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+                    videoEl.srcObject = stream;
+                    cameraBox.classList.remove('hidden');
+                    
+                    camToggleBtn.innerText = "Tắt Camera";
+                    camToggleBtn.classList.replace('bg-blue-600', 'bg-red-600');
+                    isCameraOn = true;
+                } catch (err) {
+                    alert("Không thể truy cập camera. Vui lòng cấp quyền (Allow) máy ảnh cho trang web này.");
+                    console.error(err);
+                }
+            }
+        }
+
+        function toggleCameraBorder() {
+            if (isBorderVisible) {
+                cameraBox.classList.remove('border-2', 'border-dashed', 'border-gray-400', 'shadow-2xl');
+                cameraBox.classList.add('border-0', 'shadow-none');
+            } else {
+                cameraBox.classList.add('border-2', 'border-dashed', 'border-gray-400', 'shadow-2xl');
+                cameraBox.classList.remove('border-0', 'shadow-none');
+            }
+            isBorderVisible = !isBorderVisible;
+        }
+
+        // --- 4. DRAG & DROP CAMERA (KÉO THẢ) ---
+        const dragHandle = document.getElementById('drag-handle');
+        let isDragging = false;
+        let dragStartX, dragStartY, initialLeft, initialTop;
+
+        function startDrag(e) {
+            isDragging = true;
+            const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+            dragStartX = clientX;
+            dragStartY = clientY;
+            
+            // Xóa position bottom/right nếu có, chuyển sang top/left tuyệt đối
+            const rect = cameraBox.getBoundingClientRect();
+            initialLeft = rect.left;
+            initialTop = rect.top;
+            
+            cameraBox.style.bottom = 'auto';
+            cameraBox.style.right = 'auto';
+            cameraBox.style.left = `${initialLeft}px`;
+            cameraBox.style.top = `${initialTop}px`;
+            
+            e.preventDefault();
+        }
+
+        function onDrag(e) {
+            if (!isDragging) return;
+            const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+            
+            const dx = clientX - dragStartX;
+            const dy = clientY - dragStartY;
+            
+            cameraBox.style.left = `${initialLeft + dx}px`;
+            cameraBox.style.top = `${initialTop + dy}px`;
+        }
+
+        function endDrag() { isDragging = false; }
+
+        dragHandle.addEventListener('mousedown', startDrag);
+        dragHandle.addEventListener('touchstart', startDrag, {passive: false});
+        window.addEventListener('mousemove', onDrag);
+        window.addEventListener('touchmove', onDrag, {passive: false});
+        window.addEventListener('mouseup', endDrag);
+        window.addEventListener('touchend', endDrag);
+
+        // --- 5. RESIZE CAMERA (THAY ĐỔI KÍCH THƯỚC) ---
+        const resizeHandle = document.getElementById('resize-handle');
+        let isResizing = false;
+        let resizeStartX, resizeStartY, initialWidth, initialHeight;
+
+        function startResize(e) {
+            isResizing = true;
+            const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+            resizeStartX = clientX;
+            resizeStartY = clientY;
+            
+            const rect = cameraBox.getBoundingClientRect();
+            initialWidth = rect.width;
+            initialHeight = rect.height;
+            
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function onResize(e) {
+            if (!isResizing) return;
+            const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+            
+            const dx = clientX - resizeStartX;
+            const dy = clientY - resizeStartY;
+            
+            // Giới hạn kích thước tối thiểu (100x120)
+            cameraBox.style.width = `${Math.max(100, initialWidth + dx)}px`;
+            cameraBox.style.height = `${Math.max(120, initialHeight + dy)}px`;
+        }
+
+        function endResize() { isResizing = false; }
+
+        resizeHandle.addEventListener('mousedown', startResize);
+        resizeHandle.addEventListener('touchstart', startResize, {passive: false});
+        window.addEventListener('mousemove', onResize);
+        window.addEventListener('touchmove', onResize, {passive: false});
+        window.addEventListener('mouseup', endResize);
+        window.addEventListener('touchend', endResize);
+
+        // --- KHỞI CHẠY LẦN ĐẦU ---
+        window.onload = () => {
+            changeMode(); // Chạy hàm chọn menu mặc định
+        };
     </script>
 </body>
 </html>
